@@ -1,0 +1,15 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "idf.adapterTargetName": "esp32s2",
+  "idf.openOcdConfigs": [
+    "board/esp32s2-kaluga-1.cfg"
+  ],
+  "files.associations": {
+    "freertos.h": "c",
+    "main.h": "c",
+    "bsp.h": "c",
+    "user_input.h": "c"
+  },
+  "idf.portWin": "COM6",
+  "idf.flashType": "UART"
+}
