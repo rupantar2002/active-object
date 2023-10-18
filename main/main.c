@@ -12,12 +12,17 @@
 typedef struct
 {
     active_obj_instance_t super;
-} Button_t;
+    active_obj_timeEvent_t te;
+    bool ledState;
+    uint32_t blinkTime;
+} BlinkyButton_t;
+
+/** -----------------------constants---------------------------------*/
 
 static const char *TAG = __FILE__;
 
 /** -----------------private global---------------------------------*/
-static Button_t gButton;
+static BlinkyButton_t gBlinkyBtn;
 
 /** -----------------public global----------------------------------*/
 
@@ -29,15 +34,31 @@ static Button_t gButton;
  * flow of code.
  *
  */
-active_obj_instance_t *pgActiveButton = &gButton.super;
+active_obj_instance_t *pgActiveButton = &gBlinkyBtn.super;
 
-static void ButtonEventDespatcher(Button_t *const self, active_obj_event_t const *const evt)
+/*--------------------BUTTON----------------------------*/
+
+static void BlinkyButtonEventDespatcher(BlinkyButton_t *const self,
+                                        active_obj_event_t const *const evt)
 {
     switch (evt->sig)
     {
     case ACTIVE_OBJ_RESV_SIGNALS_INIT:
-        ESP_LOGI(TAG, "%d:%s,%s", __LINE__, __func__, "ACTIVE_OBJ_RESV_SIGNALS_INIT");
         bsp_GrnLedOff();
+    case BSP_EVENT_SIG_LED_TIMEOUT:
+        ESP_LOGI(TAG, "timeout event arise");
+        if (self->ledState)
+        {
+            bsp_RedLedOff();
+            self->ledState = false;
+            active_obj_TimeEventArm(&self->te, ACTIVE_OBJ_MS_TO_INTERVAL(500), 0);
+        }
+        else
+        {
+            bsp_RedLedOn();
+            self->ledState = true;
+            active_obj_TimeEventArm(&self->te, ACTIVE_OBJ_MS_TO_INTERVAL(500), 0);
+        }
         break;
     case BSP_EVENT_SIG_BTN_PRESSED:
         bsp_GrnLedOn();
@@ -50,30 +71,19 @@ static void ButtonEventDespatcher(Button_t *const self, active_obj_event_t const
     }
 }
 
-static void ButtonInit(Button_t *const self)
+static void BlinkyButtonInit(BlinkyButton_t *const self)
 {
-    active_obj_Init((active_obj_instance_t *)self, ButtonEventDespatcher);
+    active_obj_Init((active_obj_instance_t *)self, BlinkyButtonEventDespatcher);
+    active_obj_TimeEventInit(&self->te, BSP_EVENT_SIG_LED_TIMEOUT, &self->super);
+    self->ledState = false;
 }
-
-static void LedBlinkTask(void *pvPrams)
-{
-    while (1)
-    {
-        bsp_RedLedOn();
-        vTaskDelay(pdMS_TO_TICKS(500));
-        bsp_RedLedOff();
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
+/*-------------------------------------------------------*/
 
 void app_main(void)
 {
     bsp_Init();
-    // led blinking routine
-    xTaskCreate(LedBlinkTask, "LedBlinkTask", 1024 * 2, NULL, 1, NULL);
-    // button active object
-    ButtonInit((active_obj_instance_t *)&gButton);
-    active_obj_Start((active_obj_instance_t *)&gButton);
+    BlinkyButtonInit((active_obj_instance_t *)&gBlinkyBtn);
+    active_obj_Start((active_obj_instance_t *)&gBlinkyBtn);
     // bsp
     bsp_Start();
 }

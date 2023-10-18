@@ -53,7 +53,7 @@ void bsp_GrnLedOff(void)
  */
 void user_input_Switch1StateCallback(uint8_t state)
 {
-    ESP_LOGI(TAG, "%d:%s,state: %d", __LINE__, __func__, state);
+    // ESP_LOGI(TAG, "%d:%s,state: %d", __LINE__, __func__, state);
     state ? (gButtonEvent.sig = BSP_EVENT_SIG_BTN_RELEASED) : (gButtonEvent.sig = BSP_EVENT_SIG_BTN_PRESSED);
     active_obj_PostEvent(pgActiveButton, &gButtonEvent);
 }
