@@ -82,7 +82,7 @@ void active_obj_PostEvent(active_obj_instance_t *const self, active_obj_event_t 
 {
     if (xQueueSend(self->queue, &event, 0) != pdTRUE)
         ESP_LOGE(TAG, "%d:%s,ailed to post event", __LINE__, __func__);
-    ESP_LOGI(TAG, "event posted id :%p", &event);
+    // ESP_LOGI(TAG, "event posted id :%p", &event);
 }
 
 void active_obj_PostEventFromIsr(active_obj_instance_t *const self, active_obj_event_t *event, BaseType_t highPriorityTaskWoken)
@@ -123,21 +123,3 @@ void active_obj_TimeEventDisarm(active_obj_timeEvent_t *const self)
     self->timeout = 0;
     taskEXIT_CRITICAL(&gSpinLock);
 }
-
-// void active_obj_TimeEventTick(void)
-// {
-//     uint_fast8_t i;
-//     for (i = 0; i < sizeof(gTimeEvtArray) / sizeof(gTimeEvtArray[0]); i++)
-//     {
-//         active_obj_timeEvent_t *const t = gTimeEvtArray[i];
-//         assert(t);
-//         if (t->timeout > 0) // time event armed
-//         {
-//             if (--t->timeout == 0U)
-//             {
-//                 active_obj_PostEvent(t->act, &t->super);
-//                 t->timeout = t->interval; // rearm or disarm
-//             }
-//         }
-//     }
-// }

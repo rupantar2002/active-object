@@ -6,6 +6,8 @@
 #include <freertos/queue.h>
 #include <esp_log.h>
 
+#define INITIAL_BLINK_TIME (ACTIVE_OBJ_TIMEOUT_FREQ_HZ / 4);
+
 /**
  * button inherite active object as a super class.
  */
@@ -46,22 +48,24 @@ static void BlinkyButtonEventDespatcher(BlinkyButton_t *const self,
     case ACTIVE_OBJ_RESV_SIGNALS_INIT:
         bsp_GrnLedOff();
     case BSP_EVENT_SIG_LED_TIMEOUT:
-        ESP_LOGI(TAG, "timeout event arise");
         if (self->ledState)
         {
             bsp_RedLedOff();
             self->ledState = false;
-            active_obj_TimeEventArm(&self->te, ACTIVE_OBJ_MS_TO_INTERVAL(500), 0);
+            active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
         }
         else
         {
             bsp_RedLedOn();
             self->ledState = true;
-            active_obj_TimeEventArm(&self->te, ACTIVE_OBJ_MS_TO_INTERVAL(500), 0);
+            active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
         }
         break;
     case BSP_EVENT_SIG_BTN_PRESSED:
         bsp_GrnLedOn();
+        self->blinkTime >>= 1; // shorten blink time by factor of 2
+        if (self->blinkTime == 0U)
+            self->blinkTime = INITIAL_BLINK_TIME;
         break;
     case BSP_EVENT_SIG_BTN_RELEASED:
         bsp_GrnLedOff();
@@ -76,6 +80,7 @@ static void BlinkyButtonInit(BlinkyButton_t *const self)
     active_obj_Init((active_obj_instance_t *)self, BlinkyButtonEventDespatcher);
     active_obj_TimeEventInit(&self->te, BSP_EVENT_SIG_LED_TIMEOUT, &self->super);
     self->ledState = false;
+    self->blinkTime = INITIAL_BLINK_TIME;
 }
 /*-------------------------------------------------------*/
 

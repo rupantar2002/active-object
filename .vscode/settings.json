@@ -8,7 +8,8 @@
     "freertos.h": "c",
     "main.h": "c",
     "bsp.h": "c",
-    "user_input.h": "c"
+    "user_input.h": "c",
+    "task.h": "c"
   },
   "idf.portWin": "COM6",
   "idf.flashType": "UART"
