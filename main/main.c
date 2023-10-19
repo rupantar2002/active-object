@@ -14,8 +14,13 @@
 typedef struct
 {
     active_obj_instance_t super;
+    // state var
+    enum
+    {
+        BLINK_OFF_STATE,
+        BLINK_ON_STATE,
+    } state;
     active_obj_timeEvent_t te;
-    bool ledState;
     uint32_t blinkTime;
 } BlinkyButton_t;
 
@@ -43,43 +48,125 @@ active_obj_instance_t *pgActiveButton = &gBlinkyBtn.super;
 static void BlinkyButtonEventDespatcher(BlinkyButton_t *const self,
                                         active_obj_event_t const *const evt)
 {
-    switch (evt->sig)
+    if (evt->sig == ACTIVE_OBJ_RESV_SIGNALS_INIT)
     {
-    case ACTIVE_OBJ_RESV_SIGNALS_INIT:
-        bsp_GrnLedOff();
-    case BSP_EVENT_SIG_LED_TIMEOUT:
-        if (self->ledState)
+        bsp_RedLedOff();
+        active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
+        self->state = BLINK_OFF_STATE;
+        return;
+    }
+
+    switch (self->state)
+    {
+    case BLINK_OFF_STATE:
+    {
+        ESP_LOGI(TAG, "%d:%s,BLINK_OFF_STATE", __LINE__, __func__);
+        switch (evt->sig)
         {
-            bsp_RedLedOff();
-            self->ledState = false;
-            active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
-        }
-        else
+        case BSP_EVENT_SIG_LED_TIMEOUT:
         {
             bsp_RedLedOn();
-            self->ledState = true;
             active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
+            self->state = BLINK_ON_STATE;
+            break;
+        }
+        case BSP_EVENT_SIG_BTN_PRESSED:
+        {
+            bsp_GrnLedOn();
+            self->blinkTime >>= 1; // shorten blink time by factor of 2
+            if (self->blinkTime == 0U)
+                self->blinkTime = INITIAL_BLINK_TIME;
+            break;
+        }
+        case BSP_EVENT_SIG_BTN_RELEASED:
+        {
+            bsp_GrnLedOff();
+            break;
+        }
+        default:
+        {
+            ESP_LOGE(TAG, "%d:%s,undefine event", __LINE__, __func__);
+            assert(false);
+            break;
+        }
         }
         break;
-    case BSP_EVENT_SIG_BTN_PRESSED:
-        bsp_GrnLedOn();
-        self->blinkTime >>= 1; // shorten blink time by factor of 2
-        if (self->blinkTime == 0U)
-            self->blinkTime = INITIAL_BLINK_TIME;
-        break;
-    case BSP_EVENT_SIG_BTN_RELEASED:
-        bsp_GrnLedOff();
-        break;
-    default:
+    }
+    case BLINK_ON_STATE:
+    {
+        ESP_LOGI(TAG, "%d:%s,BLINK_ON_STATE", __LINE__, __func__);
+        switch (evt->sig)
+        {
+        case BSP_EVENT_SIG_LED_TIMEOUT:
+        {
+            bsp_RedLedOff();
+            active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
+            self->state = BLINK_OFF_STATE;
+            break;
+        }
+        case BSP_EVENT_SIG_BTN_PRESSED:
+        {
+            bsp_GrnLedOn();
+            self->blinkTime >>= 1; // shorten blink time by factor of 2
+            if (self->blinkTime == 0U)
+                self->blinkTime = INITIAL_BLINK_TIME;
+            break;
+        }
+        case BSP_EVENT_SIG_BTN_RELEASED:
+        {
+            bsp_GrnLedOff();
+            break;
+        }
+        default:
+        {
+            ESP_LOGE(TAG, "%d:%s,undefine event", __LINE__, __func__);
+            assert(false);
+            break;
+        }
+        }
         break;
     }
+    default:
+    {
+        ESP_LOGE(TAG, "%d:%s,undefine state", __LINE__, __func__);
+        assert(false);
+        break;
+    }
+    }
+
+    // switch (evt->sig)
+    // {
+    // case ACTIVE_OBJ_RESV_SIGNALS_INIT:
+    // case BSP_EVENT_SIG_LED_TIMEOUT:
+    //     if (self->ledState)
+    //     {
+    //         bsp_RedLedOff();
+    //         active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
+    //     }
+    //     else
+    //     {
+    //         bsp_RedLedOn();
+    //         active_obj_TimeEventArm(&self->te, self->blinkTime, 0);
+    //     }
+    //     break;
+    // case BSP_EVENT_SIG_BTN_PRESSED:
+    //     bsp_GrnLedOn();
+    //     self->blinkTime >>= 1; // shorten blink time by factor of 2
+    //     if (self->blinkTime == 0U)
+    //         self->blinkTime = INITIAL_BLINK_TIME;
+    //     break;
+    // case BSP_EVENT_SIG_BTN_RELEASED:
+    //     bsp_GrnLedOff();
+    //     break;
+    // default:
+    //     break;
+    // }
 }
 
 static void BlinkyButtonInit(BlinkyButton_t *const self)
 {
     active_obj_Init((active_obj_instance_t *)self, BlinkyButtonEventDespatcher);
     active_obj_TimeEventInit(&self->te, BSP_EVENT_SIG_LED_TIMEOUT, &self->super);
-    self->ledState = false;
     self->blinkTime = INITIAL_BLINK_TIME;
 }
 /*-------------------------------------------------------*/
