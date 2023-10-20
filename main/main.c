@@ -129,8 +129,8 @@ static void TimeBombInit(TimeBomb_t *const self)
 void app_main(void)
 {
     bsp_Init();
+    bsp_Start();
     TimeBombInit((active_obj_instance_t *)&gBlinkyBtn);
     active_obj_Start((active_obj_instance_t *)&gBlinkyBtn);
-    // bsp
-    bsp_Start();
+
 }
