@@ -9,7 +9,8 @@
     "main.h": "c",
     "bsp.h": "c",
     "user_input.h": "c",
-    "task.h": "c"
+    "task.h": "c",
+    "stdint.h": "c"
   },
   "idf.portWin": "COM6",
   "idf.flashType": "UART"

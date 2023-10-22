@@ -6,6 +6,8 @@ typedef enum
     BSP_EVENT_SIG_BTN_PRESSED = ACTIVE_OBJ_RESV_SIGNALS_USER,
     BSP_EVENT_SIG_BTN_RELEASED,
     BSP_EVENT_SIG_TIMEOUT,
+    /*.....*/
+    BSP_MAX_EVENT,
 } bsp_eventSig_t;
 
 void bsp_Init(void);

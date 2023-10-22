@@ -11,6 +11,8 @@ typedef uint32_t active_obj_signal_t;
 typedef enum active_obj_tagResvSignals
 {
     ACTIVE_OBJ_RESV_SIGNALS_INIT,
+    ACTIVE_OBJ_RESV_SIGNALS_ENTRY,
+    ACTIVE_OBJ_RESV_SIGNALS_EXIT,
     ACTIVE_OBJ_RESV_SIGNALS_USER,
 
 } active_obj_resvSignals_t;
