@@ -1,4 +1,4 @@
-#include "active_obj.h"
+#include "event-driven/active.h"
 #include "bsp.h"
 #include "user_input.h"
 #include <driver/gpio.h>
@@ -12,7 +12,7 @@
 
 static const char *TAG = __FILE__;
 
-static active_obj_event_t gButtonEvent;
+static event_base_t gButtonEvent;
 
 void bsp_Init(void)
 {
@@ -55,5 +55,5 @@ void user_input_Switch1StateCallback(uint8_t state)
 {
     // ESP_LOGI(TAG, "%d:%s,state: %d", __LINE__, __func__, state);
     state ? (gButtonEvent.sig = BSP_EVENT_SIG_BTN_RELEASED) : (gButtonEvent.sig = BSP_EVENT_SIG_BTN_PRESSED);
-    active_obj_PostEvent(pgActiveButton, &gButtonEvent);
+    active_PostEvent(pgActiveButton, &gButtonEvent);
 }

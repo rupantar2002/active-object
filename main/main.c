@@ -1,83 +1,162 @@
-#include "active_obj.h"
+#include "event-driven/active.h"
+#include "event-driven/timer.h"
 #include "bsp.h"
-#include <stdio.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <freertos/queue.h>
 #include <esp_log.h>
-
-#define INITIAL_BLINK_TIME (ACTIVE_OBJ_TIMEOUT_FREQ_HZ / 4);
-
-/**
- * button inherite active object as a super class.
- */
-typedef struct
-{
-    active_obj_instance_t super;
-    // state var
-    enum
-    {
-        WAIT_FOR_BUTTON_STATE,
-        BLINK_STATE,
-        PAUSED_STATE,
-        BOOM_STATE,
-        /*.....*/
-        MAX_STATE,
-    } state;
-    active_obj_timeEvent_t te;
-    uint8_t btnCount;
-} TimeBomb_t;
-
-typedef enum
-{
-    TRAN_STATUS,
-    HANDLED_STATUS,
-    IGNORE_STATUS,
-    INIT_STATUS,
-} TimeBombStatus_t;
-
-/**
- * @brief Time Bomb state transition function.
- *
- */
-typedef TimeBombStatus_t (*TimeBombAction_t)(TimeBomb_t *const self, active_obj_event_t const *const evt);
-
-/** -----------------------constants---------------------------------*/
 
 static const char *TAG = __FILE__;
 
-static TimeBombStatus_t TimeBomb_Init(TimeBomb_t *const self, active_obj_event_t const *const evt);
+/*-----------------------------TIME BOMB -------------------------------*/
+#define INITIAL_BLINK_TIME (ACTIVE_OBJ_TIMEOUT_FREQ_HZ / 4);
 
-static TimeBombStatus_t TimeBomb_Ignore(TimeBomb_t *const self, active_obj_event_t const *const evt);
+/**
+ * @brief TimeBomb.
+ *
+ */
+typedef struct
+{
+    active_base_t super;
+    timer_event_t te;
+    uint8_t btnCount;
+} timeBomb_t;
 
-static TimeBombStatus_t TimeBomb_WaitForBtn_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Initial(timeBomb_t *const self, event_base_t const *const evt);
 
-static TimeBombStatus_t TimeBomb_WaitForBtn_Exit(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_WaitForBtn(timeBomb_t *const self, event_base_t const *const evt);
 
-static TimeBombStatus_t TimeBomb_WaitForBtn_Pressed(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Blink(timeBomb_t *const self, event_base_t const *const evt);
 
-static TimeBombStatus_t TimeBomb_Blink_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Paused(timeBomb_t *const self, event_base_t const *const evt);
 
-static TimeBombStatus_t TimeBomb_Blink_Exit(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Boom(timeBomb_t *const self, event_base_t const *const evt);
 
-static TimeBombStatus_t TimeBomb_Blink_Timeout(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Initial(timeBomb_t *const self, event_base_t const *const evt)
+{
+    ESP_LOGI(TAG, "%d:%s", __LINE__, __func__);
+    return FSM_TRANSITION(TimeBomb_WaitForBtn);
+}
 
-static TimeBombStatus_t TimeBomb_Paused_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_WaitForBtn(timeBomb_t *const self, event_base_t const *const evt)
+{
+    ESP_LOGI(TAG, "%d:%s", __LINE__, __func__);
+    fsm_status_t state;
+    switch (evt->sig)
+    {
+    case EVENT_RESERVED_SIGNAL_ENTRY:
+    {
+        bsp_GrnLedOn();
+        state = FSM_STATUS_HANDLED;
+        break;
+    }
+    case EVENT_RESERVED_SIGNAL_EXIT:
+    {
+        bsp_GrnLedOff();
+        state = FSM_STATUS_HANDLED;
+        break;
+    }
+    case BSP_EVENT_SIG_BTN_PRESSED:
+    {
+        self->btnCount = 5U;
+        state = FSM_TRANSITION(TimeBomb_Blink);
+        break;
+    }
+    default:
+    {
+        state = FSM_STATUS_IGNORED;
+        break;
+    }
+    }
+    return state;
+}
 
-static TimeBombStatus_t TimeBomb_Paused_Timeout(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Blink(timeBomb_t *const self, event_base_t const *const evt)
+{
+    ESP_LOGI(TAG, "%d:%s", __LINE__, __func__);
+    fsm_status_t state;
+    switch (evt->sig)
+    {
+    case EVENT_RESERVED_SIGNAL_ENTRY:
+    {
+        bsp_RedLedOn();
+        timer_ArmEvent(&self->te, TIMER_MS_TO_INTERVAL(500), 0);
+        state = FSM_STATUS_HANDLED;
+        break;
+    }
+    case EVENT_RESERVED_SIGNAL_EXIT:
+    {
+        bsp_RedLedOff();
+        state = FSM_STATUS_HANDLED;
+        break;
+    }
+    case BSP_EVENT_SIG_TIMEOUT:
+    {
+        state = FSM_TRANSITION(TimeBomb_Paused);
+        break;
+    }
+    default:
+    {
+        state = FSM_STATUS_IGNORED;
+        break;
+    }
+    }
+    return state;
+}
 
-static TimeBombStatus_t TimeBomb_Boom_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt);
+fsm_status_t TimeBomb_Paused(timeBomb_t *const self, event_base_t const *const evt)
+{
+    ESP_LOGI(TAG, "%d:%s", __LINE__, __func__);
+    fsm_status_t state;
+    switch (evt->sig)
+    {
+    case EVENT_RESERVED_SIGNAL_ENTRY:
+    {
+        timer_ArmEvent(&self->te, TIMER_MS_TO_INTERVAL(500), 0);
+        state = FSM_STATUS_HANDLED;
+        break;
+    }
+    case BSP_EVENT_SIG_TIMEOUT:
+    {
+        --self->btnCount;
+        if (self->btnCount > 0)
+            state = FSM_TRANSITION(TimeBomb_Blink);
+        else
+            state = FSM_TRANSITION(TimeBomb_Boom);
+        break;
+    }
+    default:
+    {
+        state = FSM_STATUS_IGNORED;
+        break;
+    }
+    }
+    return state;
+}
 
-static const TimeBombAction_t TIME_BOMB_TABLE[MAX_STATE][BSP_MAX_EVENT] = {
-    /*                     |   INIT    |  | ENTRY  |     |  EXIT |          | PRESSED  |            |  RELEASED  |     |  TIMEOUT  | */
-    /*  WAIT_FOR_BTN    */ {&TimeBomb_Init, &TimeBomb_WaitForBtn_Entry, &TimeBomb_WaitForBtn_Exit, &TimeBomb_WaitForBtn_Pressed, &TimeBomb_Ignore, &TimeBomb_Ignore},
-    /*      BLINK       */ {&TimeBomb_Ignore, &TimeBomb_Blink_Entry, &TimeBomb_Blink_Exit, &TimeBomb_Ignore, &TimeBomb_Ignore, &TimeBomb_Blink_Timeout},
-    /*     PAUSED       */ {&TimeBomb_Ignore, &TimeBomb_Paused_Entry, &TimeBomb_Ignore, &TimeBomb_Ignore, &TimeBomb_Ignore, &TimeBomb_Paused_Timeout},
-    /*      BOOM        */ {&TimeBomb_Ignore, &TimeBomb_Boom_Entry, &TimeBomb_Ignore, &TimeBomb_Ignore},
-};
+fsm_status_t TimeBomb_Boom(timeBomb_t *const self, event_base_t const *const evt)
+{
+    ESP_LOGI(TAG, "%d:%s", __LINE__, __func__);
+    fsm_status_t state;
+    switch (evt->sig)
+    {
+    case EVENT_RESERVED_SIGNAL_ENTRY:
+    {
+        bsp_GrnLedOn();
+        bsp_RedLedOn();
+        ESP_LOGE(TAG, "\r\n<------------BOMB SUCCESSFULLY DETONATED-------------->\r\n");
+        state = FSM_STATUS_HANDLED;
+        break;
+    }
+    default:
+    {
+        state = FSM_STATUS_IGNORED;
+        break;
+    }
+    }
+    return state;
+}
 
 /** -----------------private global---------------------------------*/
-static TimeBomb_t gTimeBomb;
+
+static timeBomb_t gTimeBomb;
 
 /** -----------------public global----------------------------------*/
 
@@ -89,113 +168,26 @@ static TimeBomb_t gTimeBomb;
  * flow of code.
  *
  */
-active_obj_instance_t *pgActiveButton = &gTimeBomb.super;
+active_base_t *pgActiveButton = &gTimeBomb.super;
 
-/*--------------------BUTTON----------------------------*/
-
-static void TimeBombEventDespatcher(TimeBomb_t *const self,
-                                    active_obj_event_t const *const evt)
+static void timeBomb_Init(timeBomb_t *const self)
 {
-    TimeBombStatus_t status;
-    int prevState = self->state;
-    configASSERT((self->state < MAX_STATE) && (evt->sig < BSP_MAX_EVENT));
-    status = (*TIME_BOMB_TABLE[self->state][evt->sig])(self, evt);
-
-    if (status == TRAN_STATUS)
-    {
-        (*TIME_BOMB_TABLE[prevState][ACTIVE_OBJ_RESV_SIGNALS_EXIT])(self, (active_obj_event_t *)0);
-        (*TIME_BOMB_TABLE[self->state][ACTIVE_OBJ_RESV_SIGNALS_ENTRY])(self, (active_obj_event_t *)0);
-    }
-    else if (status == INIT_STATUS)
-    {
-        (*TIME_BOMB_TABLE[self->state][ACTIVE_OBJ_RESV_SIGNALS_ENTRY])(self, (active_obj_event_t *)0);
-    }
+    active_Init(&self->super, (fsm_stateHandlerFun_t)&TimeBomb_Initial);
+    timer_InitEvent(&self->te, BSP_EVENT_SIG_TIMEOUT, &self->super);
 }
 
-static void TimeBombAoInit(TimeBomb_t *const self)
+static void timeBomb_Start(timeBomb_t *const self)
 {
-    active_obj_Init((active_obj_instance_t *)self, (active_obj_dispatchFun_t)&TimeBombEventDespatcher);
-    active_obj_TimeEventInit(&self->te, BSP_EVENT_SIG_TIMEOUT, &self->super);
+    active_Start(&self->super);
 }
-/*-------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------------*/
 
 void app_main(void)
 {
     bsp_Init();
     bsp_Start();
-    TimeBombAoInit((active_obj_instance_t *)&gTimeBomb);
-    active_obj_Start((active_obj_instance_t *)&gTimeBomb);
-}
-
-static TimeBombStatus_t TimeBomb_Init(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    self->state = WAIT_FOR_BUTTON_STATE;
-    return INIT_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Ignore(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    return IGNORE_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_WaitForBtn_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    bsp_GrnLedOn();
-    return HANDLED_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_WaitForBtn_Exit(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    bsp_GrnLedOff();
-    return HANDLED_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_WaitForBtn_Pressed(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    self->btnCount = 5U;
-    self->state = BLINK_STATE;
-    return TRAN_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Blink_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    bsp_RedLedOn();
-    active_obj_TimeEventArm(&self->te, ACTIVE_OBJ_MS_TO_INTERVAL(500), 0);
-    return HANDLED_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Blink_Exit(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    bsp_RedLedOff();
-    return HANDLED_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Blink_Timeout(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    self->state = PAUSED_STATE;
-    return TRAN_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Paused_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    active_obj_TimeEventArm(&self->te, ACTIVE_OBJ_MS_TO_INTERVAL(500), 0);
-    return HANDLED_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Paused_Timeout(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    --self->btnCount;
-    if (self->btnCount > 0)
-        self->state = BLINK_STATE;
-    else
-        self->state = BOOM_STATE;
-    return TRAN_STATUS;
-}
-
-static TimeBombStatus_t TimeBomb_Boom_Entry(TimeBomb_t *const self, active_obj_event_t const *const evt)
-{
-    bsp_GrnLedOn();
-    bsp_RedLedOn();
-    ESP_LOGE(TAG, "\r\n<------------BOMB SUCCESSFULLY DETONATED-------------->\r\n");
-    return HANDLED_STATUS;
+    timer_Start();
+    timeBomb_Init(&gTimeBomb);
+    timeBomb_Start(&gTimeBomb);
 }

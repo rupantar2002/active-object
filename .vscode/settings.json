@@ -10,7 +10,14 @@
     "bsp.h": "c",
     "user_input.h": "c",
     "task.h": "c",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "queue.h": "c",
+    "functional": "cpp",
+    "timer.h": "c",
+    "active.h": "c",
+    "esp_log.h": "c",
+    "executor": "c",
+    "fsm.h": "c"
   },
   "idf.portWin": "COM6",
   "idf.flashType": "UART"

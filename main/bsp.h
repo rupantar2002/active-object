@@ -3,7 +3,7 @@
 
 typedef enum
 {
-    BSP_EVENT_SIG_BTN_PRESSED = ACTIVE_OBJ_RESV_SIGNALS_USER,
+    BSP_EVENT_SIG_BTN_PRESSED = EVENT_RESERVED_SIGNAL_USER,
     BSP_EVENT_SIG_BTN_RELEASED,
     BSP_EVENT_SIG_TIMEOUT,
     /*.....*/
@@ -27,6 +27,6 @@ void bsp_GrnLedOff(void);
  * button active despatcher implemention module,in this case
  * main.c file.
  */
-extern active_obj_instance_t *pgActiveButton;
+extern active_base_t *pgActiveButton;
 
 #endif //__BSP_H__

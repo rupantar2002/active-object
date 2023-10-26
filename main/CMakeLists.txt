@@ -1,2 +1,4 @@
-idf_component_register(SRCS "bsp.c" "user_input.c" "main.c" "active_obj.c" 
+set(EVENT_DRIVEN_SRCS  "event-driven/fsm.c" "event-driven/active.c" "event-driven/timer.c")
+
+idf_component_register(SRCS ${EVENT_DRIVEN_SRCS} "user_input.c" "main.c"  "bsp.c"
                        INCLUDE_DIRS ".")
