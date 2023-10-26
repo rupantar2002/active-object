@@ -1,4 +1,4 @@
-# TimeBomb Implementation Using Active Objects and StateMachine and Guard Conditions and StateTables.
+# TimeBomb Implementation Using Active Objects and StateMachine and Guard Conditions and State Handlers.
 
 #### Prerequisite
 - C programing language
