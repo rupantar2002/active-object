@@ -53,7 +53,7 @@ fsm_status_t TimeBomb_WaitForBtn(timeBomb_t *const self, event_base_t const *con
         state = FSM_STATUS_HANDLED;
         break;
     }
-    case BSP_EVENT_SIG_BTN_PRESSED:
+    case BSP_EVENT_SIG_BTN1_PRESSED:
     {
         self->btnCount = 5U;
         state = FSM_TRANSITION(TimeBomb_Blink);

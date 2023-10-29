@@ -10,8 +10,8 @@
 #include <esp_err.h>
 #include <esp_log.h>
 
-#define BUTTON1_GPIO (GPIO_NUM_2)
-#define SWITCH1_GPIO (GPIO_NUM_3)
+#define SWITCH1_GPIO (GPIO_NUM_2)
+#define SWITCH2_GPIO (GPIO_NUM_3)
 
 #define BUTTON_TRIGGER_STATE (0)
 #define BUTTON_IDLE_STATE (1)
@@ -28,8 +28,8 @@ typedef enum
 typedef enum
 {
     INPUT_STATUS_FREE = -1,
-    INPUT_STATUS_BUTTON1_PROCESSING = 0,
-    INPUT_STATUS_SWITCH1_PROCESSING,
+    INPUT_STATUS_SWITCH1_PROCESSING = 0,
+    INPUT_STATUS_SWITCH2_PROCESSING,
     INPUT_STATUS_MAX,
 } inputStatus_t;
 
@@ -43,8 +43,8 @@ typedef struct
 __attribute__((__unused__)) static const char *TAG = "user_input";
 
 static const inputDescription_t ARRAY_OF_INPUT_DESC[] = {
-    {.gpio = BUTTON1_GPIO, .type = INPUT_TYPE_BUTTON, .status = INPUT_STATUS_BUTTON1_PROCESSING},
     {.gpio = SWITCH1_GPIO, .type = INPUT_TYPE_SWITCH, .status = INPUT_STATUS_SWITCH1_PROCESSING},
+    {.gpio = SWITCH2_GPIO, .type = INPUT_TYPE_SWITCH, .status = INPUT_STATUS_SWITCH2_PROCESSING},
 };
 
 // Interrupt Shared Variables
@@ -91,58 +91,59 @@ static void TimerCallback(void *args)
         if (gPreviousEdgeCount >= gTotalEdgeCount) // finish debounce
         {
             inputDescription_t desc = ARRAY_OF_INPUT_DESC[gInputStatus];
-            //printf("gpio %d stats %d type %d\n", desc.gpio, desc.status, desc.type);
+            // printf("gpio %d stats %d type %d\n", desc.gpio, desc.status, desc.type);
 
             switch (desc.type)
             {
-            case INPUT_TYPE_BUTTON:
-            {
-                if (gpio_get_level(desc.gpio) == BUTTON_TRIGGER_STATE)
-                {
-                    gInputObject.elapseTime = 12;
-                    gInputObject.buttonPressed = true;
-                }
-                else if (gpio_get_level(desc.gpio) == BUTTON_IDLE_STATE && gInputObject.buttonPressed)
-                {
-                    gInputObject.elapseTime = false;
-                    gInputObject.buttonPressed = false;
-                    // printf("button short press event %lld", gInputObject.elapseTime);
-                    switch (desc.status)
-                    {
-                    case INPUT_STATUS_BUTTON1_PROCESSING:
-                        user_input_Button1PressedCallback();
-                        break;
-                    default:
-                        break;
-                    }
-                }
-                else if (gInputObject.buttonPressed && (esp_timer_get_time() - gInputObject.elapseTime) >= 2000)
-                {
-                    gInputObject.elapseTime = false;
-                    gInputObject.buttonPressed = false;
-                    // printf("button long press event");
-                }
-            }
-            break;
+                // case INPUT_TYPE_BUTTON:
+                // {
+                //     if (gpio_get_level(desc.gpio) == BUTTON_TRIGGER_STATE)
+                //     {
+                //         gInputObject.elapseTime = 12;
+                //         gInputObject.buttonPressed = true;
+                //     }
+                //     else if (gpio_get_level(desc.gpio) == BUTTON_IDLE_STATE && gInputObject.buttonPressed)
+                //     {
+                //         gInputObject.elapseTime = false;
+                //         gInputObject.buttonPressed = false;
+                //         // printf("button short press event %lld", gInputObject.elapseTime);
+                //         switch (desc.status)
+                //         {
+                //         case INPUT_STATUS_BUTTON1_PROCESSING:
+                //             user_input_Button1PressedCallback();
+                //             break;
+                //         default:
+                //             break;
+                //         }
+                //     }
+                //     else if (gInputObject.buttonPressed && (esp_timer_get_time() - gInputObject.elapseTime) >= 2000)
+                //     {
+                //         gInputObject.elapseTime = false;
+                //         gInputObject.buttonPressed = false;
+                //         // printf("button long press event");
+                //     }
+                // }
+                break;
             case INPUT_TYPE_SWITCH:
             {
                 uint8_t state = gpio_get_level(desc.gpio);
                 switch (desc.status)
                 {
                 case INPUT_STATUS_SWITCH1_PROCESSING:
-                    user_input_Switch1StateCallback(state);
+                    user_input_Switch1Callback(state);
+                    break;
+                case INPUT_STATUS_SWITCH2_PROCESSING:
+                    user_input_Switch2Callback(state);
                     break;
                 default:
                     break;
                 }
             }
             break;
-            case INPUT_TYPE_ENCODER:
-            {
-            }
-            break;
             default:
+            {
                 break;
+            }
             }
 
             // exit timer
@@ -214,12 +215,12 @@ void user_input_deInit()
 {
 }
 
-__attribute__((__weak__)) void user_input_Button1PressedCallback(void)
+__attribute__((__weak__)) void user_input_Switch1Callback(uint8_t state)
 {
     ESP_LOGI(TAG, " %s: %d", __func__, __LINE__);
 }
 
-__attribute__((__weak__)) void user_input_Switch1StateCallback(uint8_t state)
+__attribute__((__weak__)) void user_input_Switch2Callback(uint8_t state)
 {
     ESP_LOGI(TAG, " %s: %d", __func__, __LINE__);
 }
