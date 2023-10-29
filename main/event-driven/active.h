@@ -23,8 +23,6 @@ void active_PostEventFromIsr(active_base_t *const self, event_base_t *event, Bas
 
 /*---------------------TimeEvent----------------*/
 
-
-
 /*----------------------------------------------*/
 
 #endif //__ACTIVE_H__
